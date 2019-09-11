@@ -8,7 +8,7 @@ from pymongo import MongoClient as Mc
 from athena_1.keyword import *
 
 class qa_spider(scrapy.Spider):
-    name='qaspider'
+    name = 'qaspider'
     #allowed_domains = ['baidu.com']
 
     def __init__(self):

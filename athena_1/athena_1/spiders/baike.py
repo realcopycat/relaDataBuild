@@ -8,329 +8,327 @@ from bs4 import BeautifulSoup as bs
 from urllib import parse as urlcode
 from athena_1.baike_design import *
 
-class baike_spider(scrapy.Spider):
-    name='BKspider'
-    allowed_domains=['baidu.com']
+
+class BaikeSpider(scrapy.Spider):
+    name = 'BKspider'
+    allowed_domains = ['baidu.com']
 
     def __init__(self):
-        self.totalSearch=0
-        #用于确定搜索的总数
-        self.search_limit=500
-        #用于确定搜索的上限
-        self.searched_url=[]
-        #储存已经搜索过的url
+        self.totalSearch = 0
+        # 用于确定搜索的总数
+        self.search_limit = 500
+        # 用于确定搜索的上限
+        self.searched_url = []
+        # 储存已经搜索过的url
 
     def start_requests(self):
-        '''设定起始urls'''
+        """设定起始urls"""
 
-        urls=['https://baike.baidu.com/item/%E7%94%B5%E4%BF%A1%E8%AF%88%E9%AA%97']
+        urls = ['https://baike.baidu.com/item/%E7%94%B5%E4%BF%A1%E8%AF%88%E9%AA%97']
 
         for url in urls:
-            yield scrapy.Request(url=url,callback=self.parse)
+            yield scrapy.Request(url=url, callback=self.parse)
 
-    def parse(self,response):
-        '''百科页面解析主函数'''
+    def parse(self, response):
+        """百科页面解析主函数"""
 
-        dic_main_content=self.main_content_parse(response)
-        dic_basicInfo=self.basicInfoParse(response)
-        (core_title,title_abstract)=self.titleANDabstract(response)
+        dic_main_content = self.main_content_parse(response)  # 主要内容解析
+        dic_basicInfo = self.basicInfoParse(response)  # 基本信息栏解析
+        (core_title, title_abstract) = self.titleANDabstract(response)  # 标题解析 及 此条摘要解析
+        other_meaning = self.multiMeaningDealer(response)  # 多义解析
 
-        other_meaning=self.multiMeaningDealer(response)
         if other_meaning:
             pass
         else:
-            other_meaning=['None']
-            #如果没有相关的义项，直接返回一个列表None
+            other_meaning = ['None']
+            # 如果没有相关的义项，直接返回一个列表None
 
-        
-        #print(dic_main_content)
-        #print(dic_basicInfo)
+        print(dic_main_content)
+        # print(dic_basicInfo)
         print(core_title)
-        #print(title_abstract)
-        #print(other_meaning)
-        
+        # print(title_abstract)
+        # print(other_meaning)
+        input()
 
-        result=[core_title,title_abstract,dic_basicInfo,other_meaning,dic_main_content]
-        self.item_packed(result)
+        result = [core_title, title_abstract, dic_basicInfo, other_meaning, dic_main_content]
+        self.item_packed(result)  # 将解析的结果打包
 
-        #print('^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^')
+        # print('^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^')
 
-        urllist=self.page_search(response)
-        if urllist:
+        urllist = self.page_search(response)  # 在页面中搜寻新的可进入页面
+        if urllist:  # 如果搜寻到可以进入的页面 就直接发出新的请求
             for url in urllist:
-                yield scrapy.Request(url=url,callback=self.parse)
+                yield scrapy.Request(url=url, callback=self.parse)
 
-        #print('^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^')
-
+        # print('^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^')
 
         return None
 
-    def main_content_parse(self,response):
-        '''主内容解析函数'''
+    def main_content_parse(self, response):
+        """主内容解析函数"""
 
-        rawText=response.text
+        rawText = response.text  # 获取生的文本
+        soup = bs(rawText)  # soup is BeautifulSoup Object
 
-        soup=bs(rawText)
-        #soup is BeautifulSoup Object
-
-        start_tag=soup.find('div','top-tool')
-
-        tag_iter=start_tag.next_siblings
-        #得到迭代对象
-
-        dic_content=self.tagIterAnalyser(tag_iter)
-        #放入解析器中解析
+        start_tag = soup.find('div', 'top-tool')  # find() 直接返回可以找到的第一个结果
+        tag_iter = start_tag.next_siblings  # 这里返回的是一个生成器对象
+        dic_content = self.tagIterAnalyser(tag_iter)  # 放入解析器中解析
 
         return dic_content
 
-    def tagIterAnalyser(self,tag_iter):
-        '''迭代器解析函数'''
+    def tagIterAnalyser(self, tag_iter):
+        """迭代器解析函数"""
 
-        content_dict={}
-        #最终的内容字典
+        content_dict = {}  # 最终的内容字典
+        """
+        每一个key ： 一级标题
+        每一个value ： 一级标题里的内容
+        """
 
         for each in tag_iter:
-            className=self.classNameBuilder(each)
-            #print('\n'+className)
+            className = self.classNameBuilder(each)
+            # print('\n'+className)
 
-            if className=='None':
+            if className == 'None':
                 continue
 
-            elif className=='para-title level-2':
-                #print('进入一级解析\n')
+            elif className == 'para-title level-2':
+                # print('进入一级解析\n')
 
-                nowKey=''
-                nowKey2=''
-                tmpList=[]
+                nowKey = ''  # 用于标记一级标题
+                nowKey2 = ''  # 用于标记二级标题
+                tmpList = []   # 用来储存一个title里有多个字段
 
-                for eachstr in each.h2.strings:
+                for eachstr in each.h2.strings:  # 选定该层级下的H2标签
                     tmpList.append(eachstr)
 
-                content_dict[tmpList[1]]={'para':[]}
-                #全新的小标题则新建一个键
-                nowKey=tmpList[1]
-                #并更新nowKey的值方便接下来的写入
+                content_dict[tmpList[1]] = {'para': []}  # 全新的小标题则新建一个键
+                """
+                之所以要使用tmplist的第二个元素，是因为第一个是该词条的标题
+                详见百度百科的网页
+                把一级标题作为结果字典的key
+                下面的段落也是字典
+                """
+                nowKey = tmpList[1]  # 并更新nowKey的值方便接下来的写入
 
-                #print(nowKey)
-                #print('\n')
-                #print(content_dict)
-                #print('\n')
-                #input()
-                continue
+                # print(nowKey)
+                # print('\n')
+                # print(content_dict)
+                # print('\n')
+                # input()
+                continue  # 解析完了一个div直接跳到下一个
 
-            elif className=='para-title level-3':
-                #print('进入二级解析\n')
+            elif className == 'para-title level-3':
+                # print('进入二级解析\n')
 
-                nowKey2=''
-                tmpList=[]
+                nowKey2 = ''
+                tmpList = []  # 直接更新tmplist
 
                 for eachstr in each.h3.strings:
                     tmpList.append(eachstr)
 
-                content_dict[nowKey][tmpList[1]]=[]
-                #先放一个空字符串占位置
-                nowKey2=tmpList[1]
-                #更新nowKey2
-
-                #print(nowKey2)
-                #print('\n')
-                #print(content_dict)
-                #print('\n')
-                #input()
+                content_dict[nowKey][tmpList[1]] = []  # 先放一个空字符串占位置
+                nowKey2 = tmpList[1]  # 更新nowKey2
+                """
+                这里之所以是第二个元素而非第一个元素，原因同上
+                """
+                # print(nowKey2)
+                # print('\n')
+                # print(content_dict)
+                # print('\n')
+                # input()
                 continue
 
-            elif className=='para':
-                #处理段落
+            elif className == 'para':
+                # 处理段落
 
-                #print('进入段落解析\n')
+                # print('进入段落解析\n')
 
-                listSpan=[]
+                listSpan = []
                 if each.span:
                     for eachstr in each.span.strings:
                         listSpan.append(eachstr)
-                        #用于处理图片占位说明导致的异常文字
-                #print(listSpan)
+                        # 用于处理图片占位说明导致的异常文字
+                # print(listSpan)
 
-                listSup=[]
+                listSup = []
                 if each.sup:
                     for eachstr in each.sup.strings:
                         listSup.append(eachstr)
-                        #用于处理脚注带来的异常标注
-                #print(listSup)
+                        # 用于处理脚注带来的异常标注
+                # print(listSup)
 
-                listText=[]
+                listText = []
                 for eachstr in each.strings:
                     listText.append(eachstr)
-                    #读取所有文本
+                    # 读取所有文本
 
-                pattern=re.compile('[[0-9]+]')
+                pattern = re.compile('[[0-9]+]')  # 用于去除脚注
 
-                processedText=[]    
+                processedText = []
                 for eachstr in listText:
-                    tmpans=eachstr.replace('\n','')
-                    tmpans=tmpans.replace(u'\xa0','')
-                    tmpans=re.sub(pattern,'',tmpans)
+                    tmpans = eachstr.replace('\n', '')
+                    tmpans = tmpans.replace(u'\xa0', '')
+                    tmpans = re.sub(pattern, '', tmpans)
                     if tmpans:
                         processedText.append(tmpans)
-                        #对于换行符进行处理
-                #print(processedText)
+                        # 对于换行符进行处理
+                # print(processedText)
 
                 if listSpan:
-                    processedText=[x for x in processedText if x not in listSpan]
+                    processedText = [x for x in processedText if x not in listSpan]
 
                 if listSup:
-                    processedText=[x for x in processedText if x not in listSup]
-                    #以上为分别对两种异常文本进行筛选
+                    processedText = [x for x in processedText if x not in listSup]
+                    # 以上为分别对两种异常文本进行筛选
 
-                finalText=''.join(processedText)
-                #合并字符串
-                #print(finalText)
+                finalText = ''.join(processedText)
+                # 合并字符串
+                # print(finalText)
 
                 if 'nowKey2' in dir():
-                    #如果出现了不在层级里的para，那么我们直接放弃
+                    # 如果出现了不在层级里的para，那么我们直接放弃
 
-                    #接下来就是考虑怎么放入指定位置了
-                    if nowKey2=='':
+                    # 接下来就是考虑怎么放入指定位置了
+                    if nowKey2 == '':
                         content_dict[nowKey]['para'].append(finalText)
-                        #我们假设所有的小标题里都有para默认字段，这个字段下是一个列表
-                        #储存一段一段的文字
+                        # 我们假设所有的小标题里都有para默认字段，这个字段下是一个列表
+                        # 储存一段一段的文字
                     else:
                         content_dict[nowKey][nowKey2].append(finalText)
-                        #但如果恰好nowKey2是真，那么写入属于它的字段
+                        # 但如果恰好nowKey2是真，那么写入属于它的字段
                 else:
                     continue
 
-                #print('\n')
-                #print(content_dict)
-                #print('\n')
-
-                #input()
                 continue
-
-        #print(content_dict)
 
         return content_dict
 
-    def basicInfoParse(self,response):
+    def basicInfoParse(self, response):
         '''基本信息获取器'''
 
-        copy=response.css('[class="basicInfo-item name"] ::text').extract()
+        copy = response.css('[class="basicInfo-item name"] ::text').extract()
 
-        basicName=[]
+        basicName = []
 
         for each in copy:
-            tmp=each.replace(u'\xa0',u'')
+            tmp = each.replace(u'\xa0', u'')
             basicName.append(tmp)
 
-        #print(basicName)
+        # print(basicName)
 
-        #接下来获取valueList
+        # 接下来获取valueList
 
-        soup=bs(response.text)
-        #soup是bs对象
+        soup = bs(response.text)
+        # soup是bs对象
 
-        valueRaw=soup.find_all('dd','basicInfo-item value')
-        #valueRaw是提取的符合条件的标签列表
+        valueRaw = soup.find_all('dd', 'basicInfo-item value')
+        # valueRaw是提取的符合条件的标签列表
 
-        pattern=re.compile('[[0-9]+]')
-        #用于去除引注的正则表达式
+        pattern = re.compile('[[0-9]+]')
+        # 用于去除引注的正则表达式
 
-        valueList=[]
+        valueList = []
 
         for strIter in valueRaw:
-            #遍历标签列表
-            tmplist=[]
+            # 遍历标签列表
+            tmplist = []
             for strs in strIter.strings:
-                #访问每个标签带有的字符串的生成器
-                #print(str(strs))
+                # 访问每个标签带有的字符串的生成器
+                # print(str(strs))
                 tmplist.append(str(strs))
-                #把断断续续的字符串先按顺序放入列表
+                # 把断断续续的字符串先按顺序放入列表
 
-            finalans=self.string_processer(tmplist)
-            #合成最终答案
+            finalans = self.string_processer(tmplist)
+            # 合成最终答案
             valueList.append(finalans)
-            #加入最终答案的列表
+            # 加入最终答案的列表
 
-        dic_basicInfo=dict(zip(basicName,valueList))
-        #print(dic_basicInfo)
+        dic_basicInfo = dict(zip(basicName, valueList))
+        # print(dic_basicInfo)
 
         return dic_basicInfo
 
-    def classNameBuilder(self,tag):
-        '''基于bs4的class名称合成器'''
+    def classNameBuilder(self, tag):
+        """
+        基于bs4的class名称合成器
+
+        这里需要解决的问题就是解析出来的class是列表的问题
+        """
 
         try:
-            tmp_className=tag['class']
-        except:
+            tmp_className = tag['class']
+        except :
             return 'None'
 
-        #接下来要得到标准的class名称
-        if len(tmp_className)>1:
-            tmp_className=' '.join(str(i) for i in tmp_className)
+        # 接下来要得到标准的class名称
+        if len(tmp_className) > 1:
+            tmp_className = ' '.join(str(i) for i in tmp_className)
         else:
-            tmp_className=str(tmp_className[0])
+            tmp_className = str(tmp_className[0])
 
         return tmp_className
 
-    def item_packed(self,listResult):
-        '''最终结果的打包器'''
+    def item_packed(self, listResult):
+        """最终结果的打包器"""
 
-        core_title=listResult[0]
-        title_abstract=listResult[1]
-        basic_info=listResult[2]
-        other_meaning=listResult[3]
-        main_content=listResult[4]
+        core_title = listResult[0]
+        title_abstract = listResult[1]
+        basic_info = listResult[2]
+        other_meaning = listResult[3]
+        main_content = listResult[4]
 
-        pack_data={
-            'title':core_title,
-            'abstract':title_abstract,
-            'basic_info':basic_info,
-            'multi_meaning':other_meaning,
-            'relative_info':main_content
-            }
+        pack_data = {
+            'title': core_title,
+            'abstract': title_abstract,
+            'basic_info': basic_info,
+            'multi_meaning': other_meaning,
+            'relative_info': main_content
+        }
 
-        DBclient=Mc()
-        spiderDB=DBclient.spider_data
-        collection=spiderDB.baidu_baike_3_test
+        DBclient = Mc()
+        spiderDB = DBclient.spider_data
+        collection = spiderDB.baidu_baike_3_test
 
-        data_id=collection.insert_one(pack_data).inserted_id
+        data_id = collection.insert_one(pack_data).inserted_id
 
-        #return None
+        # return None
 
-    def titleANDabstract(self,response):
+
+    def titleANDabstract(self, response):
         '''标题及摘要的获取函数'''
 
-        title=response.css('dd[class="lemmaWgt-lemmaTitle-title"] h1 ::text').extract()[0]
-        #string形式的title
+        title = response.css('dd[class="lemmaWgt-lemmaTitle-title"] h1 ::text').extract()[0]
+        # string形式的title
 
-        rawAbstract=response.css('div[class="lemma-summary"] ::text').extract()
-        #未经处理的带有摘要的列表
+        rawAbstract = response.css('div[class="lemma-summary"] ::text').extract()
+        # 未经处理的带有摘要的列表
 
-        abstract=self.string_processer(rawAbstract)
-        #调用函数进行处理
+        abstract = self.string_processer(rawAbstract)
+        # 调用函数进行处理
 
-        return (title,abstract)
+        return (title, abstract)
 
-    def string_processer(self,str_list):
+    def string_processer(self, str_list):
         '''文本处理三件套'''
 
-        pattern=re.compile('[[0-9]+]')
+        pattern = re.compile('[[0-9]+]')
 
-        final_list=[]
+        final_list = []
 
         for each in str_list:
-            tmpans=each.replace('\n','')
-            tmpans=tmpans.replace(u'\xa0','')
-            tmpans=re.sub(pattern,'',tmpans)
+            tmpans = each.replace('\n', '')
+            tmpans = tmpans.replace(u'\xa0', '')
+            tmpans = re.sub(pattern, '', tmpans)
 
-            if not tmpans=='':
+            if not tmpans == '':
                 final_list.append(tmpans)
 
-        fianlAns=''.join(i for i in final_list)
+        fianlAns = ''.join(i for i in final_list)
 
         return fianlAns
 
-    def multiMeaningDealer(self,response):
+    def multiMeaningDealer(self, response):
         '''检测是否具有多个意思，并进行保存'''
 
         if response.css('ul[class="polysemantList-wrapper cmn-clearfix"]'):
@@ -338,35 +336,35 @@ class baike_spider(scrapy.Spider):
         else:
             return []
 
-    def page_search(self,response):
+    def page_search(self, response):
         '''在页面内搜寻相关页面深度探索'''
 
-        #print('\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\')
-        if self.totalSearch>self.search_limit:
+        # print('\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\')
+        if self.totalSearch > self.search_limit:
             return None
 
-        url_list=response.css('a ::attr(href)').extract()
-        
-        possible_list=[]
+        url_list = response.css('a ::attr(href)').extract()
 
-        pattern1=re.compile(RE_PATTERN_KEY_WORD)
-        pattern2=re.compile(RE_PATTERN_ITEM)
+        possible_list = []
+
+        pattern1 = re.compile(RE_PATTERN_KEY_WORD)
+        pattern2 = re.compile(RE_PATTERN_ITEM)
 
         for each in url_list:
-            tmp_url=urlcode.unquote(each)
-            #print(tmp_url)
-            #input()
-            if re.search(pattern2,tmp_url):
-                if re.search(pattern1,tmp_url):
+            tmp_url = urlcode.unquote(each)
+            # print(tmp_url)
+            # input()
+            if re.search(pattern2, tmp_url):
+                if re.search(pattern1, tmp_url):
                     if tmp_url not in self.searched_url:
-                        self.totalSearch=self.totalSearch+1
+                        self.totalSearch = self.totalSearch + 1
                         self.searched_url.append(tmp_url)
 
-                        #如果链接同时满足两种条件，那么进行搜索
-                        #print(tmp_url)
-                        #input()
+                        # 如果链接同时满足两种条件，那么进行搜索
+                        # print(tmp_url)
+                        # input()
 
-                        possible_url='https://baike.baidu.com'+each
+                        possible_url = 'https://baike.baidu.com' + each
                         possible_list.append(possible_url)
                     else:
                         continue
@@ -374,5 +372,5 @@ class baike_spider(scrapy.Spider):
                     continue
             else:
                 continue
-        #print(possible_list)
+        # print(possible_list)
         return possible_list
