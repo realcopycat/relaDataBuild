@@ -5,6 +5,10 @@ import re
 from urllib import parse as urlcode
 from bs4 import BeautifulSoup as BS
 import urllib3
+import logging
+
+
+logging.getLogger("urllib3").setLevel(logging.WARNING)
 
 STOPWORDS_FILE = './athena_1/component/stopwords.txt'
 
@@ -47,7 +51,7 @@ def detectKeySentence(eachPara, title):
             tmp_url = 'https://baike.baidu.com/item/' + urlcode.quote(eachWord)
 
             count = count + 1  # 用于log
-            print("checking url" + str(count))  # 用于log
+            # print("checking url" + str(count))  # 用于log
 
             if urlCheck(tmp_url):
                 result_ListOfPossibleUrl.append(tmp_url)

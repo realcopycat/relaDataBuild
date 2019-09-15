@@ -9,19 +9,20 @@ import time
 
 
 class BaikeRelaPicker(scrapy.Spider):
-    name = 'relaPicker'
+    name = 'relaPicker_multi'
 
     def __init__(self):
         self.limit = 5000 * 20
         self.totalCount = 0
-
+        self.entry = [str(input())]
+        print(self.entry)
         self.start_time = time.time()
 
     def start_requests(self):
         """
         设定初始的url
         """
-        entry_url = ['https://baike.baidu.com/item/刑事']
+        entry_url = self.entry
 
         for each in entry_url:
             yield scrapy.Request(url=each, callback=self.parse, dont_filter=True)
