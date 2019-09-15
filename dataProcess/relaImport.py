@@ -18,7 +18,7 @@ class MongoDataDriver:
     def __init__(self):
         self._client = MongoClient()
         self._database = self._client.relationData
-        self.collection = self._database['testRun']
+        self.collection = self._database['testRun3']
 
 
 def read_and_write():
@@ -31,7 +31,8 @@ def read_and_write():
         count = 0  # 用于计数
         start_time = time.time()  # 用于计时
 
-        for each in mongo_driver.collection.find():
+        x = mongo_driver.collection.find(no_cursor_timeout=True)
+        for each in x:
             start = each['startNode']
             end = each['endNode']
             rela = each['relation']
@@ -47,6 +48,8 @@ def read_and_write():
             count = count + 1
             per_time = totaltime / count
             print("has processed : {0}, per time : {1}, total time : {2}".format(count, per_time, totaltime))
+
+        x.close()
 
 
 if __name__ == '__main__':
