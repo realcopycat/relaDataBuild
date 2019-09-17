@@ -31,7 +31,7 @@ def read_and_write():
         count = 0  # 用于计数
         start_time = time.time()  # 用于计时
 
-        x = mongo_driver.collection.find(no_cursor_timeout=True)
+        x = mongo_driver.collection.find(no_cursor_timeout=False, batch_size=400)
         for each in x:
             start = each['startNode']
             end = each['endNode']

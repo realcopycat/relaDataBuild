@@ -39,11 +39,15 @@ def detectKeySentence(eachPara, title):
         """
         part 1  通过构建url 侦测可以建立节点的名词
         """
+
         tmpCutResList = list(set(JB.lcut(each_sentence, cut_all=True)))  # 使用列表储存分词的结果 并实现去重
 
         count = 0  # 计数系统 用于log输出
 
         for eachWord in tmpCutResList:
+
+            if eachWord == title:
+                continue
 
             if wordFilter(eachWord) is False:  # 如未能通过过滤器 则直接终止
                 continue
@@ -129,7 +133,7 @@ def tagCheck(body):
     :return:
     """
     tagList = ['自然', '科学', '社会', '科技产品', '学科', '疾病', '医学',
-               '非生物', '医学术语']  # 预制词汇
+               '非生物', '医学术语', '生活', '书籍', '语言', '人物']  # 预制词汇
     tags = body.find_all('span', 'taglist')  # 搜寻词条标签
 
     if tags is not None:

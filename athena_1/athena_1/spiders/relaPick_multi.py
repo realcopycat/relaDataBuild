@@ -12,7 +12,7 @@ class BaikeRelaPicker(scrapy.Spider):
     name = 'relaPicker_multi'
 
     def __init__(self):
-        self.limit = 5000 * 20
+        self.limit = 5000 * 2000
         self.totalCount = 0
         self.entry = [str(input())]
         print(self.entry)
@@ -94,7 +94,7 @@ class BaikeRelaPicker(scrapy.Spider):
         """
         DBclient = MC()  # 打开数据库链接
         database = DBclient.relationData
-        dataCollection = database.testRun3
+        dataCollection = database.testRun4
 
         for x in dataList:
             if dataCollection.find_one(x) is None:
