@@ -4,17 +4,17 @@ import csv
 import re
 
 client = MC()
-collection = client['relationData']['testRun3']
-output_node_path = '../data/node1.csv'
-output_relation_path = '../data/rela1.csv'
+collection = client['relationData']['testRun2']
+output_node_path = '../data/node3.csv'
+output_relation_path = '../data/rela3.csv'
 
 total_node_set = set()
-id_head = "testRun3_"  # 以collection 的名字作为id 的开头
+id_head = "testRun2_"  # 以collection 的名字作为id 的开头
 id_count = 0  # 用于作为唯一标示
 node_dict = dict()  # 全程使用键值对来实现索引
 relation_dict_list = list()
 
-cur = collection.find(batch_size=50, )
+cur = collection.find(batch_size=50)
 with open(output_node_path, 'w') as node_file:
     with open(output_relation_path, 'w') as rela_file:
         csv_point = csv.writer(node_file)
@@ -45,7 +45,7 @@ with open(output_node_path, 'w') as node_file:
                 end_node_id = node_dict[x['endNode']]
                 format_check_name = re.sub(r'\s+', '', x['relation'])
                 csv_point_rela.writerow(
-                    [start_node_id, x['relation'], end_node_id, 'normal_rela'])
+                    [start_node_id, format_check_name, end_node_id, 'normal_rela'])
 
             print('this round had process: {0}'.format(id_count))
 

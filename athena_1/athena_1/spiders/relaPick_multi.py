@@ -94,7 +94,7 @@ class BaikeRelaPicker(scrapy.Spider):
         """
         DBclient = MC()  # 打开数据库链接
         database = DBclient.relationData
-        dataCollection = database.testRun4
+        dataCollection = database.testRun5
 
         for x in dataList:
             if dataCollection.find_one(x) is None:
